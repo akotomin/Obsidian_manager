@@ -42,7 +42,7 @@ class TaskManager:
                 with open(file_path, 'r+', encoding="utf-8") as file:
                     lines = file.readlines()
 
-                # Парсинг YAML-заголовка
+                    # Парсинг YAML-заголовка
                     yaml_header = {}
                     content_start = 0
 

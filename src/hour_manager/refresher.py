@@ -1,19 +1,16 @@
 import sys
 import os
 from dotenv import load_dotenv
-
-# Добавляем корень проекта в sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-
-# Загружаем .env
-dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
-load_dotenv(dotenv_path)
-
 from const import DATE_FORMAT
 from config import LAST_RUN_FILE, REGULAR_PATH_FILE, TASKS_PATH, LAST_DATE
 from datetime import datetime
 from src.hour_manager.task_manager import TaskManager, TasksUnchecker
 from src.hour_manager.calendar_client import GoogleCalendar
+
+# Загружаем .env
+dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
+load_dotenv(dotenv_path)
+
 
 
 if __name__ == "__main__":

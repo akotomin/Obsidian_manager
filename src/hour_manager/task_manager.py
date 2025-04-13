@@ -2,6 +2,7 @@ import os
 import shutil
 import yaml
 from datetime import datetime
+from ..md_file_parser import MarkdownWorker
 
 
 class TaskManager:
@@ -20,6 +21,35 @@ class TaskManager:
         shutil.move(os.path.join(path, file_name), os.path.join(destination_folder, file_name))
         print(f"Файл '{file_name}' перемещен в папку Выполнено")
 
+    def content_worker(self, md_file, tasks_path, file, file_name):
+        tags = md_file.yaml_header.get('tags', [])
+        tasks_dict = dict()
+
+        if 'выполнено' in tags:
+            self.task_mover(tasks_path, file_name)
+
+        else:
+            # Проверка задач
+            all_tasks_done = md_file.unchecked_task_searcher()
+
+            # Если все задачи выполнены, обновляем YAML-заголовок
+            if all_tasks_done:
+                # Функция обновления YAML заголовка
+                new_content = md_file.overwrite_yaml_header()
+                # Перезаписываем файл
+                file.seek(0)  # Устанавливаем указатель в начало файла
+                file.writelines(new_content)  # Записываем новый контент
+                file.truncate()  # Убираем остатки старого содержимого, если новый контент короче
+
+                # Перемещаем файл в папку Выполнено
+                self.task_mover(tasks_path, file_name)
+
+            # Если есть невыполненные задачи, добавляем содержание файла в словарь для описания в гугл задачу
+            else:
+                # В случае если задача не была перемещена в выполнено, добавляем ее в список задач
+                tasks_dict[md_file.file_name] = [md_file.yaml_header, md_file.task_content()]
+                return tasks_dict
+
     def task_manager(self, tasks_path):
         """
         Находит все задачи в переданной директории, обрабатывает их в зависимости от содержимого внутри задачи.
@@ -32,7 +62,6 @@ class TaskManager:
         :return: Словарь вида `{task_name: {yaml_header, description}}` для невыполненных задач.
         :rtype: dict[str, dict[dict, ]]
         """
-        tasks_dict = dict()
 
         for file_name in os.listdir(tasks_path):
             # Рассматриваем только markdown файлы
@@ -40,74 +69,10 @@ class TaskManager:
                 file_path = os.path.join(tasks_path, file_name)
 
                 with open(file_path, 'r+', encoding="utf-8") as file:
-                    lines = file.readlines()
+                    content = file.readlines()
 
-                    # Парсинг YAML-заголовка
-                    yaml_header = {}
-                    content_start = 0
-
-                    if lines[0].strip() == "---":
-                        for i, line in enumerate(lines[1:], start=1):
-                            if line.strip() == "---":
-                                content_start = i + 1
-                                yaml_header = yaml.safe_load("".join(lines[1:i]))
-                                break
-
-                    if 'выполнено' in yaml_header.get('tags', []):
-                        self.task_mover(tasks_path, file_name)
-
-                    else:
-                        # Проверка задач
-                        all_tasks_done = True
-                        for line in lines[content_start:]:
-                            line = line.strip()
-                            if line.startswith("- [ ]"):  # Найдена невыполненная задача
-                                all_tasks_done = False
-                                break
-
-                        # Обновляем YAML-заголовок
-                        if all_tasks_done:
-                            if 'tags' not in yaml_header:
-                                yaml_header['tags'] = []
-                            yaml_header['tags'].append('выполнено')
-
-                            # Формируем новый контент файла
-                            new_content = list()
-                            new_content.append("---\n")
-                            new_content.extend(yaml.dump(yaml_header, allow_unicode=True).splitlines(keepends=True))
-                            new_content.append("---\n")
-                            new_content.extend(lines[content_start:])
-
-                            # Перезаписываем файл
-                            file.seek(0)  # Устанавливаем указатель в начало файла
-                            file.writelines(new_content)  # Записываем новый контент
-                            file.truncate()  # Убираем остатки старого содержимого, если новый контент короче
-
-                            # Перемещаем файл в папку Выполнено
-                            self.task_mover(tasks_path, file_name)
-
-                        # Название файла без его свойства
-                        name = file_name.strip(".md")
-
-                        # Если есть невыполненные задачи, добавляем описание задачи
-                        if not all_tasks_done:
-                            description = ""
-
-                            for line in lines[content_start:]:
-                                # Убираем лишнее описание из задачи
-                                if line.startswith('```button'):
-                                    break
-                                # Пропускаем заголовок для подзадач
-                                elif line.startswith('###'):
-                                    continue
-                                # Записываю в описание только невыполненные задачи
-                                elif line.startswith('- [ ]'):
-                                    description += line[:5] + line[21:]
-
-                            # В случае если задача не была перемещена в выполнено, добавляем ее в список задач
-                            tasks_dict[name] = [yaml_header, description]
-
-        return tasks_dict
+                    md_file = MarkdownWorker(content, file_name)
+                    return self.content_worker(md_file, tasks_path, file, file_name)
 
 
 class TasksUnchecker:
@@ -122,7 +87,8 @@ class TasksUnchecker:
 
         # Открываем файл в режиме чтения и записи
         with open(path, 'r+', encoding="utf-8") as file:
-            lines = file.readlines()
+            content = file.readlines()
+            md_file = MarkdownWorker(content)
 
             # Перемещаем указатель в начало файла
             file.seek(0)

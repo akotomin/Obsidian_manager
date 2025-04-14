@@ -39,9 +39,6 @@ PERSONAL_CALENDAR_ID = getenv('PERSONAL_CALENDAR_ID')
 # Путь к хранилищу Obsidian
 VAULT_PATH = getenv('VAULT_PATH')
 
-# Файл для хранения информации о последнем выполнении
-LAST_RUN_FILE = getenv('LAST_RUN_FILE')
-
 # Путь к файлу с регулярными тасками
 REGULAR_PATH_FILE = getenv('REGULAR_PATH_FILE')
 

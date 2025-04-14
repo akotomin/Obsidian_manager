@@ -1,9 +1,8 @@
 import os
 import shutil
-from ..md_file_parser import MarkdownWorker
+from src.md_file_parser import MarkdownWorker
 from const import FOLDER_BY_TAG
 from config import VAULT_PATH
-
 
 def move_notes_by_tag(path, file_path, file_name, tags):
     """
@@ -38,8 +37,11 @@ def file_enumeration(path):
                 content = file.readlines()
 
                 md_file = MarkdownWorker(content)
-                tags = md_file.yaml_header.get('tags', [])
-                move_notes_by_tag(path, file_path, file_name, tags)
+                try:
+                    tags = md_file.yaml_header.get('tags', [])
+                    move_notes_by_tag(path, file_path, file_name, tags)
+                except:
+                    print(f'Файл: "{file_name.strip(".md")}" не является задачей')
 
 if __name__ == "__main__":
     file_enumeration(VAULT_PATH)

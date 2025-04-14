@@ -1,6 +1,6 @@
 import yaml
 from datetime import datetime
-
+from const import DATE_FORMAT
 
 class MarkdownWorker:
     """
@@ -30,7 +30,6 @@ class MarkdownWorker:
                 except yaml.YAMLError as e:
                     print(f"Ошибка парсинга YAML: {e}")
                     return None
-        return None
 
     def __get_content_lines(self) -> list[str]:
         """Возвращает список строк основного контента (после YAML-заголовка)"""
@@ -41,11 +40,14 @@ class MarkdownWorker:
         return content_lines
 
     def unchecked_task_searcher(self):
-        for line in self.content[self.content_start:]:
+        all_task_done = []
+
+        for line in self.content_lines:
             line = line.strip()
             if line.startswith("- [ ]"):  # Найдена невыполненная задача
-                return True
-        return False
+                all_task_done.append(True)
+
+        return all(all_task_done)
 
     def overwrite_yaml_header(self, change_content=False):
         if 'tags' not in self.yaml_header:
@@ -60,55 +62,33 @@ class MarkdownWorker:
         new_yaml_header.append("---\n")
         new_yaml_header.extend(yaml.dump(self.yaml_header, allow_unicode=True).splitlines(keepends=True))
         new_yaml_header.append("---\n")
-        new_yaml_header.extend(lines[self.content_start:])
+        new_yaml_header.extend(self.content[self.content_start:])
 
         return new_yaml_header
 
-    def regular_file_changer(self, date_format):
-        replaced_lines = []
+    def regular_file_changer(self):
+        new_content = []
+        self.yaml_header['date'] = datetime.now().strftime(DATE_FORMAT)
 
-        in_yaml = False
+        # Добавляем обновленный YAML заголовок
+        new_content.append("---\n")
+        new_content.extend(yaml.dump(self.yaml_header, allow_unicode=True).splitlines(keepends=True))
+        new_content.append("---\n")
 
-        for line in lines:
-            if line.strip() == "---":  # Начало или конец YAML-заголовка
-                in_yaml = not in_yaml
-
-            # Если внутри YAML-заголовка
-            elif in_yaml and line.startswith("date:"):
-                # Перезаписываем дату
-                file.write(f"date: {datetime.now().strftime(date_format)}\n")
-                date_was_updated = True
-                continue
-
-            # Заменяем символы в строках и записываем обратно
+        # Обрабатываем основной контент, заменяя выполненные задачи на невыполненные
+        for line in self.content_lines:
             if "- [x]" in line:
-                replaced_lines.append(
-                    (
-                        line.strip(),
-                        line.replace("- [x]", "- [ ]").strip()
-                    )
-                )
-
-            file.write(line.replace("- [x]", "- [ ]"))
-
-            # Удаляем остаток предыдущего содержимого файла
-            file.truncate()
-
-            # Вывод результатов
-            if replaced_lines:
-                print("Скрипт unchek_regular_task завершен успешно. Следующие строки были заменены:")
-                for original, modified in replaced_lines:
-                    print(f"'{original}' -> '{modified}'")
+                new_line = line.replace("- [x]", "- [ ]")
+                new_content.append(new_line)
             else:
-                print("Скрипт unchek_regular_task завершен успешно. Замены не потребовались.")
+                new_content.append(line)
 
-            if date_was_updated:
-                print("Дата в YAML-заголовке была обновлена.")
+        return new_content
 
     def parse_task_content(self):
         task_content = ""
 
-        for line in self.content[self.content_start:]:
+        for line in self.content_lines:
             # Если дошли до кнопки(button), значит задачи закончились
             if line.startswith('```button'):
                 break
@@ -120,17 +100,3 @@ class MarkdownWorker:
                 task_content += line[:5] + line[21:]
 
         return task_content
-
-
-
-with open('Донорство.md', 'r', encoding="utf-8") as file:
-    lines = file.readlines()
-
-parser = MarkdownWorker(lines)
-print("YAML заголовок:", parser.yaml_header)
-# print("\nОсновной контент:")
-# for line in parser.content_lines:
-#     print(line, end='')
-
-parser.yaml_header['start_date'] = datetime.now().strftime(date_format)
-print()

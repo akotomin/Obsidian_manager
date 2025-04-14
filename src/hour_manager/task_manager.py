@@ -25,6 +25,7 @@ class TaskManager:
 
         if 'выполнено' in tags:
             self.task_mover(tasks_path, file_name)
+            return tasks_dict
 
         else:
             # Проверка задач
@@ -47,6 +48,7 @@ class TaskManager:
                 # В случае если задача не была перемещена в выполнено, добавляем ее в список задач
                 tasks_dict[md_file.file_name] = [md_file.yaml_header, md_file.parse_task_content()]
                 return tasks_dict
+            return tasks_dict
 
     def task_manager(self, tasks_path):
         """
@@ -72,6 +74,8 @@ class TaskManager:
                     md_file = MarkdownWorker(content, file_name)
                     return self.content_worker(md_file, tasks_path, file, file_name)
 
+        return {}
+
 
 class TasksUnchecker:
     """
@@ -87,44 +91,12 @@ class TasksUnchecker:
         with open(path, 'r+', encoding="utf-8") as file:
             content = file.readlines()
             md_file = MarkdownWorker(content)
+            # Получаем обновленное содержимое файла
+            new_content = md_file.regular_file_changer()
 
-            # # Перемещаем указатель в начало файла
-            # file.seek(0)
-            #
-            # in_yaml = False
-            #
-            # for line in lines:
-            #     if line.strip() == "---":  # Начало или конец YAML-заголовка
-            #         in_yaml = not in_yaml
-            #
-            #     # Если внутри YAML-заголовка
-            #     elif in_yaml and line.startswith("date:"):
-            #         # Перезаписываем дату
-            #         file.write(f"date: {datetime.now().strftime(date_format)}\n")
-            #         date_was_updated = True
-            #         continue
-            #
-            #     # Заменяем символы в строках и записываем обратно
-            #     if "- [x]" in line:
-            #         replaced_lines.append(
-            #             (
-            #                 line.strip(),
-            #                 line.replace("- [x]", "- [ ]").strip()
-            #             )
-            #         )
-            #
-            #     file.write(line.replace("- [x]", "- [ ]"))
-            #
-            # # Удаляем остаток предыдущего содержимого файла
-            # file.truncate()
+            # Перемещаем указатель в начало файла и записываем новый контент
+            file.seek(0)
+            file.writelines(new_content)
 
-        # # Вывод результатов
-        # if replaced_lines:
-        #     print("Скрипт unchek_regular_task завершен успешно. Следующие строки были заменены:")
-        #     for original, modified in replaced_lines:
-        #         print(f"'{original}' -> '{modified}'")
-        # else:
-        #     print("Скрипт unchek_regular_task завершен успешно. Замены не потребовались.")
-        #
-        # if date_was_updated:
-        #     print("Дата в YAML-заголовке была обновлена.")
+            # Обрезаем файл до новой длины (на случай, если новый контент короче старого)
+            file.truncate()

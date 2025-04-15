@@ -44,27 +44,50 @@ class MarkdownWorker:
 
         for line in self.content_lines:
             line = line.strip()
-            if line.startswith("- [ ]"):  # Найдена невыполненная задача
+            if line.startswith("```button"):
+                break
+            elif line.startswith("### "):
+                continue
+            elif line.startswith("- [ ]"):  # Найдена невыполненная задача
+                all_task_done.append(False)
+            else:
                 all_task_done.append(True)
 
         return all(all_task_done)
 
-    def overwrite_yaml_header(self, change_content=False):
+    def overwrite_yaml_header(self):
+        """
+        Перезаписывает YAML заголовок в файле, оставляя без изменений основной контент
+        :return: new_content - новый контент файла с обновленным YAML заголовком.
+        """
         if 'tags' not in self.yaml_header:
             self.yaml_header['tags'] = []
         self.yaml_header['tags'].append('выполнено')
 
-        if change_content:
-            self.yaml_header.get()
-
         # Формируем новый контент файла
-        new_yaml_header = list()
-        new_yaml_header.append("---\n")
-        new_yaml_header.extend(yaml.dump(self.yaml_header, allow_unicode=True).splitlines(keepends=True))
-        new_yaml_header.append("---\n")
-        new_yaml_header.extend(self.content[self.content_start:])
+        new_content = list()
+        new_content.append("---\n")
+        new_content.extend(yaml.dump(self.yaml_header, allow_unicode=True).splitlines(keepends=True))
+        new_content.append("---\n")
+        new_content.extend(self.content[self.content_start:])
 
-        return new_yaml_header
+        return new_content
+
+    def parse_task_content(self):
+        task_content = ""
+
+        for line in self.content_lines:
+            # Если дошли до кнопки(button), значит задачи закончились
+            if line.startswith('```button'):
+                break
+            # Пропускаем заголовок для подзадач
+            elif line.startswith('###'):
+                continue
+            # Записываю в описание только невыполненные задачи
+            elif line.startswith('- [ ]'):
+                task_content += line[:5] + line[21:]
+
+        return task_content
 
     def regular_file_changer(self):
         new_content = []
@@ -84,19 +107,3 @@ class MarkdownWorker:
                 new_content.append(line)
 
         return new_content
-
-    def parse_task_content(self):
-        task_content = ""
-
-        for line in self.content_lines:
-            # Если дошли до кнопки(button), значит задачи закончились
-            if line.startswith('```button'):
-                break
-            # Пропускаем заголовок для подзадач
-            elif line.startswith('###'):
-                continue
-            # Записываю в описание только невыполненные задачи
-            elif line.startswith('- [ ]'):
-                task_content += line[:5] + line[21:]
-
-        return task_content

@@ -5,7 +5,7 @@ from src.md_file_parser import MarkdownWorker
 
 class TaskManager:
     @staticmethod
-    def task_mover(path, file_name):
+    def move_completed_tasks(path, file_name):
         """
         Перемещает файл из переданной директории в директорию с выполненными задачами
         :param path: Путь, где лежит файл, кторый необходимо переместить
@@ -19,36 +19,32 @@ class TaskManager:
         shutil.move(os.path.join(path, file_name), os.path.join(destination_folder, file_name))
         print(f"Файл '{file_name}' перемещен в папку Выполнено")
 
-    def content_worker(self, md_file, tasks_path, file, file_name):
+    def verify_all_tasks_done(self, md_file, tasks_path, file, file_name):
         tags = md_file.yaml_header.get('tags', [])
-        tasks_dict = dict()
 
         if 'выполнено' in tags:
-            self.task_mover(tasks_path, file_name)
-            return tasks_dict
+            self.move_completed_tasks(tasks_path, file_name)
 
         else:
             # Проверка задач
             all_tasks_done = md_file.unchecked_task_searcher()
 
-            # Если все задачи выполнены, обновляем YAML-заголовок
+            # Если все задачи выполнены, обновляем YAML-заголовок и файл
             if all_tasks_done:
-                # Функция обновления YAML заголовка
-                new_content = md_file.overwrite_yaml_header()
                 # Перезаписываем файл
                 file.seek(0)  # Устанавливаем указатель в начало файла
-                file.writelines(new_content)  # Записываем новый контент
+                file.writelines(md_file.overwrite_yaml_header())  # Записываем новый контент
                 file.truncate()  # Убираем остатки старого содержимого, если новый контент короче
 
                 # Перемещаем файл в папку Выполнено
-                self.task_mover(tasks_path, file_name)
+                self.move_completed_tasks(tasks_path, file_name)
 
-            # Если есть невыполненные задачи, добавляем содержание файла в словарь для описания в гугл задачу
+
+            # Если есть невыполненные задачи, возвращаем саму задачу
             else:
-                # В случае если задача не была перемещена в выполнено, добавляем ее в список задач
-                tasks_dict[md_file.file_name] = [md_file.yaml_header, md_file.parse_task_content()]
-                return tasks_dict
-            return tasks_dict
+                return md_file
+
+        return None
 
     def task_manager(self, tasks_path):
         """
@@ -62,6 +58,7 @@ class TaskManager:
         :return: Словарь вида `{task_name: {yaml_header, description}}` для невыполненных задач.
         :rtype: dict[str, dict[dict, ]]
         """
+        tasks_dict = dict()
 
         for file_name in os.listdir(tasks_path):
             # Рассматриваем только markdown файлы
@@ -72,9 +69,12 @@ class TaskManager:
                     content = file.readlines()
 
                     md_file = MarkdownWorker(content, file_name)
-                    return self.content_worker(md_file, tasks_path, file, file_name)
+                    checked_md_file = self.verify_all_tasks_done(md_file, tasks_path, file, file_name)
+                    if checked_md_file is None:
+                        continue
+                    tasks_dict[md_file.file_name] = [md_file.yaml_header, md_file.parse_task_content()]
 
-        return {}
+        return tasks_dict
 
 
 class TasksUnchecker:

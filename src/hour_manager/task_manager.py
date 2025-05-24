@@ -76,17 +76,13 @@ class TaskManager:
 
         return tasks_dict
 
-
-class TasksUnchecker:
-    """
-    Обновляет ежедневные задачи, если они были закрыты
-    """
     @staticmethod
-    def uncheck_tasks(path, date_format):
-        # Хранение изменённых строк для отчёта
-        replaced_lines = []
-        date_was_updated = False
+    def uncheck_tasks(path):
+        """
+        Обновляет ежедневные задачи, если они были закрыты
 
+        :param path: Директория, в которой необходимо искать файлы
+        """
         # Открываем файл в режиме чтения и записи
         with open(path, 'r+', encoding="utf-8") as file:
             content = file.readlines()

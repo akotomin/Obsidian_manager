@@ -45,17 +45,9 @@ class GoogleCalendar:
         # Получаем текущее время в часовом поясе Москвы
         now = datetime.now(pytz.timezone('Europe/Moscow'))
 
-        # Начало текущего месяца (1-е число текущего месяца)
-        first_day_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-        # Конец текущего месяца (последний день месяца в 23:59:59)
-        # Для этого увеличим месяц на 1 и вычтем 1 день
-        next_month = now.replace(day=28) + timedelta(days=4)  # Переход на следующий месяц
-        last_day_of_month = (next_month.replace(day=1) - timedelta(days=1)).replace(hour=23, minute=59, second=59)
-
         # Переводим в формат ISO
-        time_min = first_day_of_month.isoformat()
-        time_max = last_day_of_month.isoformat()
+        time_min = (now - timedelta(days=60)).isoformat()
+        time_max = (now + timedelta(days=60)).isoformat()
 
         # Запрашиваем события в указанном диапазоне времени
         events = self.service.events().list(
@@ -104,6 +96,9 @@ class GoogleCalendar:
         """
         # Формируем московское время
         local_tz = pytz.timezone("Europe/Moscow")
+        personal_event_dict = self.get_events_for_current_month(PERSONAL_CALENDAR_ID)
+        fam_event_dict = self.get_events_for_current_month(GENERAL_CALENDAR_ID)
+        event_dict = {**personal_event_dict, **fam_event_dict}
 
         for task_name, content in tasks_dict.items():
             # Формируем список параметров в зависимости от содержания файла
@@ -117,9 +112,10 @@ class GoogleCalendar:
             }
 
             # (На случай, если я буду переносить дату задачи)
+
             # Если файл есть среди событий
-            if task_name in self.get_events_for_current_month(params['calendar_id']).keys():
-                event = self.get_events_for_current_month(params['calendar_id'])[task_name]
+            if task_name in event_dict.keys():
+                event = event_dict[task_name]
                 event_date = event['start']['dateTime']
                 if params['start_date'] == event_date:
                     print(f"Файл {task_name} уже записан в календарь")

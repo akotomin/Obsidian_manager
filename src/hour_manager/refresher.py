@@ -14,18 +14,17 @@ load_dotenv(dotenv_path)
 if __name__ == "__main__":
     # Обновляем файл с датой выполнения
     def update_last_run_date():
-        # Читаем содержимое .env
-        with open(dotenv_path, 'r') as file:
-            lines = file.readlines()
+        with open(dotenv_path, 'r+') as file:  # Открываем файл в режиме чтения и записи
+            lines = file.readlines()  # Читаем все строки
+            file.seek(0)  # Перемещаем указатель в начало файла
+            file.truncate()  # Очищаем файл (чтобы перезаписать его)
 
-        # Удаляем строку с MY_DATE, если она существует
-        lines = [line for line in lines if not line.startswith("MY_DATE=")]
-
-        # Записываем обратно в файл .env с новой переменной MY_DATE
-        with open(dotenv_path, 'w') as file:
-            # Перезаписываем файл с новыми данными
+            # Фильтруем строки и добавляем новую
+            lines = [line for line in lines if not line.startswith("MY_DATE=")]
             lines.append(f"MY_DATE={datetime.now().strftime(DATE_FORMAT)}\n")
-            file.writelines(lines)
+
+            file.writelines(lines)  # Записываем обновлённые строки
+
 
     if LAST_DATE is None:
         LAST_DATE = update_last_run_date()
